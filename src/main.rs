@@ -74,9 +74,9 @@ fn transform_url(action: &Action, url: url::Url, json: bool) -> color_eyre::Resu
                 while let Some((key, value)) = map.next() {
                     if key != "url" {
                         print!("{}", value);
-                    }
-                    if map.peek().is_some() {
-                        print!(" ");
+                        if map.peek().is_some() {
+                            print!(" ");
+                        }
                     }
                 }
             }

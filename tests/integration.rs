@@ -51,3 +51,33 @@ fn example5() {
         "https 443 /hello.html\n",
     );
 }
+
+#[test]
+fn example6() {
+    assert_cmd::Command::cargo_bin("urlq")
+        .unwrap()
+        .args(["get", "host"])
+        .write_stdin(std::fs::read("tests/url-list.txt").unwrap())
+        .assert()
+        .success()
+        .stdout(predicate::eq(
+            "curl.se
+fake.host
+example.net
+",
+        ));
+}
+
+#[test]
+fn example7() {
+    test_case(
+        &[
+            "https://fake.host/hello#frag",
+            "--json",
+            "set",
+            "user=::moo::",
+        ],
+        r#"{"url":"https://%3A%3Amoo%3A%3A@fake.host/hello#frag","fragment":"frag","host":"fake.host","path":"/hello","port":"443","scheme":"https","user":"%3A%3Amoo%3A%3A"}
+"#,
+    )
+}

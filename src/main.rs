@@ -1,11 +1,13 @@
 mod imp;
 
+use std::io::{BufRead, BufReader};
+
 use clap::{Parser, Subcommand, ValueEnum};
 use serde::Serialize;
 
 #[derive(Debug, Parser)]
 struct Cli {
-    url: url::Url,
+    url: Option<url::Url>,
     #[command(subcommand)]
     action: Action,
     #[clap(short, long)]
@@ -15,7 +17,7 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Action {
     /// Parts of the url to obtain
-    Get { targets: Vec<Target> },
+    Get { targets: Vec<UrlComponent> },
     /// Parts of the url to update
     Set {
         #[clap(value_parser = clap::value_parser!(SetAction))]
@@ -25,13 +27,13 @@ enum Action {
 
 #[derive(Debug, Clone)]
 struct SetAction {
-    target: Target,
+    target: UrlComponent,
     value: String,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, ValueEnum, Serialize)]
 #[serde(rename_all = "camelCase")]
-enum Target {
+enum UrlComponent {
     Fragment,
     Host,
     Password,
@@ -44,29 +46,46 @@ enum Target {
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
-    let args = Cli::parse();
-    match &args.action {
+    let Cli { action, json, url } = Cli::parse();
+    if let Some(url) = url {
+        transform_url(&action, url, json)?;
+    } else {
+        let stdin = BufReader::new(std::io::stdin().lock());
+        for line in stdin.lines() {
+            let url = line?.parse()?;
+            transform_url(&action, url, json)?;
+        }
+    }
+    Ok(())
+}
+
+fn transform_url(action: &Action, url: url::Url, json: bool) -> color_eyre::Result<()> {
+    match action {
         Action::Get { targets } => {
-            let map = extract_to_map(&args.url, targets);
-            if args.json {
-                serde_json::to_writer_pretty(std::io::stdout().lock(), &map)?;
+            let map = extract_to_map(&url, targets);
+            if json {
+                serde_json::to_writer(std::io::stdout().lock(), &map)?;
             } else {
-                for (key, value) in map {
+                let mut map = map.into_iter().peekable();
+                while let Some((key, value)) = map.next() {
                     if key != "url" {
-                        print!("{} ", value);
+                        print!("{}", value);
+                    }
+                    if map.peek().is_some() {
+                        print!(" ");
                     }
                 }
             }
         }
         Action::Set { actions } => {
-            let mut url = args.url.clone();
+            let mut url = url;
             for action in actions {
                 action.target.set(&mut url, &action.value);
             }
-            if args.json {
-                serde_json::to_writer_pretty(
+            if json {
+                serde_json::to_writer(
                     std::io::stdout().lock(),
-                    &extract_to_map(&url, Target::value_variants()),
+                    &extract_to_map(&url, UrlComponent::value_variants()),
                 )?;
             } else {
                 print!("{url}");
@@ -77,45 +96,45 @@ fn main() -> color_eyre::Result<()> {
     Ok(())
 }
 
-impl Target {
+impl UrlComponent {
     fn fetch(&self, url: &url::Url) -> Option<String> {
         match self {
-            Target::Fragment => url.fragment().map(ToString::to_string),
-            Target::Host => url.host_str().map(ToString::to_string),
-            Target::Password => url.password().map(ToString::to_string),
-            Target::Path => Some(url.path().to_owned()),
-            Target::Port => url.port_or_known_default().map(|port| port.to_string()),
-            Target::Query => url.query().map(ToString::to_string),
-            Target::Scheme => Some(url.scheme().to_owned()),
-            Target::User => Some(url.username().to_owned()),
+            UrlComponent::Fragment => url.fragment().map(ToString::to_string),
+            UrlComponent::Host => url.host_str().map(ToString::to_string),
+            UrlComponent::Password => url.password().map(ToString::to_string),
+            UrlComponent::Path => Some(url.path().to_owned()),
+            UrlComponent::Port => url.port_or_known_default().map(|port| port.to_string()),
+            UrlComponent::Query => url.query().map(ToString::to_string),
+            UrlComponent::Scheme => Some(url.scheme().to_owned()),
+            UrlComponent::User => Some(url.username().to_owned()),
         }
     }
 
     fn set(&self, url: &mut url::Url, value: &str) {
         match self {
-            Target::Fragment => url.set_fragment(Some(value)),
-            Target::Host => url
+            UrlComponent::Fragment => url.set_fragment(Some(value)),
+            UrlComponent::Host => url
                 .set_host(Some(value))
                 .unwrap_or_else(|_| panic!("invalid host: {value:?}")),
-            Target::Password => url
+            UrlComponent::Password => url
                 .set_password(Some(value))
                 .unwrap_or_else(|_| panic!("invalid password: {value:?}")),
-            Target::Path => url.set_path(value),
-            Target::Port => url
+            UrlComponent::Path => url.set_path(value),
+            UrlComponent::Port => url
                 .set_port(value.parse().ok())
                 .unwrap_or_else(|_| panic!("invalid port: {value:?}")),
-            Target::Query => url.set_query(Some(value)),
-            Target::Scheme => url
+            UrlComponent::Query => url.set_query(Some(value)),
+            UrlComponent::Scheme => url
                 .set_scheme(value)
                 .unwrap_or_else(|_| panic!("invalid scheme: {value:?}")),
-            Target::User => url
+            UrlComponent::User => url
                 .set_username(value)
                 .unwrap_or_else(|_| panic!("invalid user: {value:?}")),
         }
     }
 }
 
-fn extract_to_map(url: &url::Url, parts: &[Target]) -> indexmap::IndexMap<String, String> {
+fn extract_to_map(url: &url::Url, parts: &[UrlComponent]) -> indexmap::IndexMap<String, String> {
     let mut map = indexmap::IndexMap::new();
     map.insert("url".into(), url.to_string());
     for part in parts {

@@ -5,11 +5,15 @@ use std::io::{BufRead, BufReader};
 use clap::{Parser, Subcommand, ValueEnum};
 use serde::Serialize;
 
+/// Tool to explore and modify URLs programmatically.
 #[derive(Debug, Parser)]
+#[clap(author, version, about, color = clap::ColorChoice::Auto)]
 struct Cli {
+    /// URL to explore, if absent urlq reads from stdin line by line
     url: Option<url::Url>,
     #[command(subcommand)]
     action: Action,
+    /// Output as newline delimited JSON
     #[clap(short, long)]
     json: bool,
 }

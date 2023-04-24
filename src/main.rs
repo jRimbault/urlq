@@ -146,7 +146,7 @@ fn extract_to_map(url: &url::Url, parts: &[UrlComponent]) -> indexmap::IndexMap<
             if value.is_empty() {
                 continue;
             }
-            map.insert(part.to_string(), value.into());
+            map.insert(part.to_string(), value);
         }
     }
     map

@@ -10,6 +10,7 @@ use std::path::PathBuf;
 #[case(&["https://curl.se/we/are.html", "get", "port"], "cases/07", 0)]
 #[case(&["https://example.com/hello.html", "get", "scheme", "port", "path"], "cases/08", 0)]
 #[case(&["get", "scheme"], "cases/09", 1)]
+#[case(&["get", "port"], "cases/10", 1)]
 fn test(#[case] args: &[&str], #[case] path: &str, #[case] exit_code: i32) {
     let path: PathBuf = ["tests"].into_iter().chain(path.split('/')).collect();
     let stdin = std::fs::read_to_string(path.join("stdin.txt")).unwrap_or_default();
@@ -17,6 +18,7 @@ fn test(#[case] args: &[&str], #[case] path: &str, #[case] exit_code: i32) {
     let stdout = std::fs::read_to_string(path.join("stdout.txt")).unwrap_or_default();
     assert_cmd::Command::cargo_bin(env!("CARGO_PKG_NAME"))
         .unwrap()
+        .env("NO_COLOR", "1")
         .args(args)
         .write_stdin(stdin)
         .assert()

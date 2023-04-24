@@ -7,6 +7,7 @@ use std::{
     time::Duration,
 };
 
+use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use serde::Serialize;
 
@@ -53,19 +54,21 @@ enum UrlComponent {
     User,
 }
 
-fn main() -> color_eyre::Result<()> {
-    color_eyre::install()?;
+fn main() -> Result<()> {
     let Cli { action, json, url } = Cli::parse();
     if let Some(url) = url {
         transform_url(&action, url, json)?;
     } else {
         let has_data_on_stdin = AtomicBool::new(false);
-        thread::scope(|s| -> color_eyre::Result<()> {
+        thread::scope(|s| -> Result<()> {
             let stdin = BufReader::new(std::io::stdin().lock());
             s.spawn(|| quit_if_nothing_on_stdin(&has_data_on_stdin));
             for line in stdin.lines() {
                 has_data_on_stdin.store(true, Ordering::Relaxed);
-                let url = line?.parse()?;
+                let line = line?;
+                let url = line
+                    .parse()
+                    .with_context(|| format!("invalid URL {line:?}"))?;
                 transform_url(&action, url, json)?;
             }
             Ok(())
@@ -85,7 +88,7 @@ fn quit_if_nothing_on_stdin(has_data_on_stdin: &AtomicBool) {
     std::process::exit(1);
 }
 
-fn transform_url(action: &Action, url: url::Url, json: bool) -> color_eyre::Result<()> {
+fn transform_url(action: &Action, url: url::Url, json: bool) -> Result<()> {
     match action {
         Action::Get { targets } => {
             let map = extract_to_map(&url, targets);

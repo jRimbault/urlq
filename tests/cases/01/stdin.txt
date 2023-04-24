@@ -1,0 +1,3 @@
+https://curl.se
+http://fake.host
+http://example.net

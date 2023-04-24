@@ -1,0 +1,1 @@
+{"url":"https://%3A%3Amoo%3A%3A@fake.host/hello#frag","fragment":"frag","host":"fake.host","path":"/hello","port":"443","scheme":"https","user":"%3A%3Amoo%3A%3A"}

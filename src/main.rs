@@ -62,16 +62,7 @@ fn main() -> color_eyre::Result<()> {
         let has_data_on_stdin = AtomicBool::new(false);
         thread::scope(|s| -> color_eyre::Result<()> {
             let stdin = BufReader::new(std::io::stdin().lock());
-            s.spawn(|| {
-                for _ in 0..10 {
-                    if has_data_on_stdin.load(Ordering::Relaxed) {
-                        return;
-                    }
-                    thread::sleep(Duration::from_millis(50));
-                }
-                eprintln!("nothing to read on stdin");
-                std::process::exit(1);
-            });
+            s.spawn(|| quit_if_nothing_on_stdin(&has_data_on_stdin));
             for line in stdin.lines() {
                 has_data_on_stdin.store(true, Ordering::Relaxed);
                 let url = line?.parse()?;
@@ -81,6 +72,17 @@ fn main() -> color_eyre::Result<()> {
         })?;
     }
     Ok(())
+}
+
+fn quit_if_nothing_on_stdin(has_data_on_stdin: &AtomicBool) {
+    for _ in 0..10 {
+        if has_data_on_stdin.load(Ordering::Relaxed) {
+            return;
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+    eprintln!("nothing to read on stdin");
+    std::process::exit(1);
 }
 
 fn transform_url(action: &Action, url: url::Url, json: bool) -> color_eyre::Result<()> {

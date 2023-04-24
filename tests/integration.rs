@@ -22,7 +22,7 @@ fn test(#[case] args: &[&str], #[case] stdout: &str) {
 #[case(&["https://fake.host/hello#frag", "--json", "set", "user=::moo::"], "cases/02")]
 #[case(&["https://fake.host/hello#frag", "set", "user=::moo::"], "cases/03")]
 fn file(#[case] args: &[&str], #[case] path: &str) {
-    let path = PathBuf::from(format!("tests/{path}"));
+    let path = PathBuf::from("tests").join(path);
     let stdin = std::fs::read_to_string(path.join("stdin.txt")).unwrap_or_default();
     let stdout = std::fs::read_to_string(path.join("stdout.txt")).unwrap();
     assert_cmd::Command::cargo_bin(env!("CARGO_PKG_NAME"))

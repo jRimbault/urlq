@@ -1,6 +1,11 @@
 mod imp;
 
-use std::io::{BufRead, BufReader};
+use std::{
+    io::{BufRead, BufReader},
+    sync::atomic::{AtomicBool, Ordering},
+    thread,
+    time::Duration,
+};
 
 use clap::{Parser, Subcommand, ValueEnum};
 use serde::Serialize;
@@ -54,11 +59,23 @@ fn main() -> color_eyre::Result<()> {
     if let Some(url) = url {
         transform_url(&action, url, json)?;
     } else {
-        let stdin = BufReader::new(std::io::stdin().lock());
-        for line in stdin.lines() {
-            let url = line?.parse()?;
-            transform_url(&action, url, json)?;
-        }
+        let has_data_on_stdin = AtomicBool::new(false);
+        let _ = thread::scope(|s| -> color_eyre::Result<()> {
+            s.spawn(|| {
+                thread::sleep(Duration::from_millis(500));
+                if !has_data_on_stdin.load(Ordering::Relaxed) {
+                    eprintln!("nothing to read on stdin");
+                    std::process::exit(1);
+                }
+            });
+            let stdin = BufReader::new(std::io::stdin().lock());
+            for line in stdin.lines() {
+                has_data_on_stdin.store(true, Ordering::Relaxed);
+                let url = line?.parse()?;
+                transform_url(&action, url, json)?;
+            }
+            Ok(())
+        })?;
     }
     Ok(())
 }

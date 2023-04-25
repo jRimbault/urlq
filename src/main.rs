@@ -65,7 +65,7 @@ fn main() -> Result<()> {
             s.spawn(|| quit_if_nothing_on_stdin(&has_data_on_stdin));
             for line in stdin.lines() {
                 has_data_on_stdin.store(true, Ordering::Relaxed);
-                let line = line?;
+                let line = line.context("reading line from stdin")?;
                 let url = line
                     .parse()
                     .with_context(|| format!("invalid URL {line:?}"))?;
@@ -109,7 +109,7 @@ fn transform_url(action: &Action, url: url::Url, json: bool) -> Result<()> {
         Action::Set { actions } => {
             let mut url = url;
             for action in actions {
-                action.target.set(&mut url, &action.value);
+                action.target.set(&mut url, &action.value)?;
             }
             if json {
                 serde_json::to_writer(
@@ -139,27 +139,28 @@ impl UrlComponent {
         }
     }
 
-    fn set(&self, url: &mut url::Url, value: &str) {
+    fn set(&self, url: &mut url::Url, value: &str) -> Result<()> {
         match self {
             UrlComponent::Fragment => url.set_fragment(Some(value)),
             UrlComponent::Host => url
                 .set_host(Some(value))
-                .unwrap_or_else(|_| panic!("invalid host: {value:?}")),
+                .map_err(|_| anyhow::anyhow!("invalid host: {value:?}"))?,
             UrlComponent::Password => url
                 .set_password(Some(value))
-                .unwrap_or_else(|_| panic!("invalid password: {value:?}")),
+                .map_err(|_| anyhow::anyhow!("invalid password: {value:?}"))?,
             UrlComponent::Path => url.set_path(value),
             UrlComponent::Port => url
                 .set_port(value.parse().ok())
-                .unwrap_or_else(|_| panic!("invalid port: {value:?}")),
+                .map_err(|_| anyhow::anyhow!("invalid port: {value:?}"))?,
             UrlComponent::Query => url.set_query(Some(value)),
             UrlComponent::Scheme => url
                 .set_scheme(value)
-                .unwrap_or_else(|_| panic!("invalid scheme: {value:?}")),
+                .map_err(|_| anyhow::anyhow!("invalid scheme: {value:?}"))?,
             UrlComponent::User => url
                 .set_username(value)
-                .unwrap_or_else(|_| panic!("invalid user: {value:?}")),
+                .map_err(|_| anyhow::anyhow!("invalid user: {value:?}"))?,
         }
+        Ok(())
     }
 }
 

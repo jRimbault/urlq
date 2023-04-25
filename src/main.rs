@@ -147,21 +147,25 @@ impl UrlComponent {
             UrlComponent::Fragment => url.set_fragment(Some(value)),
             UrlComponent::Host => url
                 .set_host(Some(value))
-                .map_err(|_| anyhow::anyhow!("invalid host: {value:?}"))?,
+                .map_err(|_| anyhow::anyhow!("invalid host {value:?}"))?,
             UrlComponent::Password => url
                 .set_password(Some(value))
-                .map_err(|_| anyhow::anyhow!("invalid password: {value:?}"))?,
+                .map_err(|_| anyhow::anyhow!("invalid password {value:?}"))?,
             UrlComponent::Path => url.set_path(value),
             UrlComponent::Port => url
-                .set_port(value.parse().ok())
-                .map_err(|_| anyhow::anyhow!("invalid port: {value:?}"))?,
+                .set_port(Some(
+                    value
+                        .parse()
+                        .with_context(|| format!("invalid port {value:?}"))?,
+                ))
+                .map_err(|_| anyhow::anyhow!("invalid port {value:?}"))?,
             UrlComponent::Query => url.set_query(Some(value)),
             UrlComponent::Scheme => url
                 .set_scheme(value)
-                .map_err(|_| anyhow::anyhow!("invalid scheme: {value:?}"))?,
+                .map_err(|_| anyhow::anyhow!("invalid scheme {value:?}"))?,
             UrlComponent::User => url
                 .set_username(value)
-                .map_err(|_| anyhow::anyhow!("invalid user: {value:?}"))?,
+                .map_err(|_| anyhow::anyhow!("invalid user {value:?}"))?,
         }
         Ok(())
     }

@@ -11,6 +11,7 @@ use std::path::PathBuf;
 #[case(&["https://example.com/hello.html", "get", "scheme", "port", "path"], "cases/08", 0)]
 #[case(&["get", "scheme"], "cases/09", 1)]
 #[case(&["get", "port"], "cases/10", 1)]
+#[case(&["https://curl.se?name=hello", "--json", "set", "host=example.net"], "cases/11", 0)]
 fn test(#[case] args: &[&str], #[case] path: &str, #[case] exit_code: i32) {
     let path: PathBuf = ["tests"].into_iter().chain(path.split('/')).collect();
     let stdin = std::fs::read_to_string(path.join("stdin.txt")).unwrap_or_default();

@@ -98,7 +98,10 @@ fn transform_url(action: &Action, url: url::Url, json: bool) -> Result<()> {
                 let mut map = map.into_iter().peekable();
                 while let Some((key, value)) = map.next() {
                     if key != "url" {
-                        print!("{}", value);
+                        match value {
+                            Value::String(v) => print!("{v}"),
+                            Value::Map(map) => print!("{map:?}"),
+                        }
                         if map.peek().is_some() {
                             print!(" ");
                         }
@@ -164,15 +167,32 @@ impl UrlComponent {
     }
 }
 
-fn extract_to_map(url: &url::Url, parts: &[UrlComponent]) -> indexmap::IndexMap<String, String> {
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+enum Value {
+    String(String),
+    Map(indexmap::IndexMap<String, String>),
+}
+
+fn extract_to_map(url: &url::Url, parts: &[UrlComponent]) -> indexmap::IndexMap<String, Value> {
     let mut map = indexmap::IndexMap::new();
-    map.insert("url".into(), url.to_string());
+    map.insert("url".to_string(), Value::String(url.to_string()));
     for part in parts {
+        if let UrlComponent::Query = part {
+            let query_pairs = url
+                .query_pairs()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect::<indexmap::IndexMap<String, String>>();
+            if !query_pairs.is_empty() {
+                map.insert("query".to_string(), Value::Map(query_pairs));
+            }
+            continue;
+        }
         if let Some(value) = part.fetch(url) {
             if value.is_empty() {
                 continue;
             }
-            map.insert(part.to_string(), value);
+            map.insert(part.to_string(), Value::String(value));
         }
     }
     map

@@ -1,3 +1,5 @@
+use tap::Pipe;
+
 use std::path::PathBuf;
 
 #[rstest::rstest]
@@ -15,14 +17,20 @@ use std::path::PathBuf;
 #[case(&["https://curl.se", "set", "port=TTTT"], "cases/12", 1)]
 fn test(#[case] args: &[&str], #[case] path: &str, #[case] exit_code: i32) {
     let path: PathBuf = ["tests"].into_iter().chain(path.split('/')).collect();
-    let stdin = std::fs::read_to_string(path.join("stdin.txt")).unwrap_or_default();
+    let stdin = std::fs::read_to_string(path.join("stdin.txt")).ok();
     let stderr = std::fs::read_to_string(path.join("stderr.txt")).unwrap_or_default();
     let stdout = std::fs::read_to_string(path.join("stdout.txt")).unwrap_or_default();
     assert_cmd::Command::cargo_bin(env!("CARGO_PKG_NAME"))
         .unwrap()
         .env("NO_COLOR", "1")
         .args(args)
-        .write_stdin(stdin)
+        .pipe(|cmd| {
+            if let Some(stdin) = stdin {
+                cmd.write_stdin(stdin)
+            } else {
+                cmd
+            }
+        })
         .assert()
         .code(exit_code)
         .stdout(stdout)

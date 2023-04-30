@@ -1,11 +1,6 @@
 mod imp;
 
-use std::{
-    io::{BufRead, BufReader},
-    sync::atomic::{AtomicBool, Ordering},
-    thread,
-    time::Duration,
-};
+use std::io::{BufRead, BufReader};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
@@ -57,35 +52,20 @@ enum UrlComponent {
 fn main() -> Result<()> {
     let Cli { action, json, url } = Cli::parse();
     if let Some(url) = url {
+        return transform_url(&action, url, json);
+    }
+    if atty::is(atty::Stream::Stdin) {
+        anyhow::bail!("nothing to read on stdin and no URL in arguments");
+    }
+    let stdin = BufReader::new(std::io::stdin().lock());
+    for line in stdin.lines() {
+        let line = line.context("reading line from stdin")?;
+        let url = line
+            .parse()
+            .with_context(|| format!("invalid URL {line:?}"))?;
         transform_url(&action, url, json)?;
-    } else {
-        let has_data_on_stdin = AtomicBool::new(false);
-        thread::scope(|s| -> Result<()> {
-            let stdin = BufReader::new(std::io::stdin().lock());
-            s.spawn(|| quit_if_nothing_on_stdin(&has_data_on_stdin));
-            for line in stdin.lines() {
-                has_data_on_stdin.store(true, Ordering::Relaxed);
-                let line = line.context("reading line from stdin")?;
-                let url = line
-                    .parse()
-                    .with_context(|| format!("invalid URL {line:?}"))?;
-                transform_url(&action, url, json)?;
-            }
-            Ok(())
-        })?;
     }
     Ok(())
-}
-
-fn quit_if_nothing_on_stdin(has_data_on_stdin: &AtomicBool) {
-    for _ in 0..10 {
-        if has_data_on_stdin.load(Ordering::Relaxed) {
-            return;
-        }
-        thread::sleep(Duration::from_millis(50));
-    }
-    eprintln!("nothing to read on stdin");
-    std::process::exit(1);
 }
 
 fn transform_url(action: &Action, url: url::Url, json: bool) -> Result<()> {

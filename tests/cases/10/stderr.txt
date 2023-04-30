@@ -1,4 +1,0 @@
-Error: invalid URL "example.net"
-
-Caused by:
-    relative URL without a base

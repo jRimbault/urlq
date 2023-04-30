@@ -1,2 +1,1 @@
-443
-80
+{"url":"https://example.net/?name=hello","host":"example.net","path":"/","port":"443","query":{"name":"hello"},"scheme":"https"}

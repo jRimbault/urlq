@@ -6,6 +6,7 @@ authors = ["jRimbault <jacques.rimbault@gmail.com>"]
 
 [dependencies]
 anyhow = "1.0.70"
+atty = "0.2.14"
 clap = { version = "4.2.2", features = ["derive"] }
 indexmap = { version = "1.9.3", features = ["serde"] }
 serde = { version = "1.0.160", features = ["derive"] }
